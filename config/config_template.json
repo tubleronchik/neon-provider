@@ -1,0 +1,15 @@
+{
+    "http_node_provider": "",
+    "provider_address": "",
+    "provider_pk": "",
+    "spot_address": "",
+    "spot_pk": "",
+    "lighthouse_contract_address": "",
+    "xrt_contract_address": "",
+    "factory_contract_address": "",
+    "validator_address": "",
+    "validator_pk": "",
+    "ipfs_topic": "",
+    "ipfs_id_dapp": "",
+    "ipfs_id_agent": ""
+}
