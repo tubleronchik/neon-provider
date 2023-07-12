@@ -1,5 +1,4 @@
 import json
-from tkinter.messagebox import NO
 import ipfs_api
 import base64
 import argparse
@@ -14,13 +13,15 @@ def download_abi() -> tuple:
         lighthouse = json.load(f)
     with open("abi/Liability.json") as f:
         liability = json.load(f)
-    return factory["abi"], lighthouse["abi"], liability["abi"]
+    return factory, lighthouse, liability
 
 
 class Provider:
     def __init__(self, config_path: str) -> None:
         self.config: dict = self._read_configuration(config_path)
         self.w3 = web3.Web3(web3.Web3.HTTPProvider(self.config["http_node_provider"]))
+        self.demand = ""
+        self.offeer = ""
         ipfs_api.pubsub_subscribe(self.config["ipfs_topic"], self.on_message)
 
     def _read_configuration(self, path: str) -> dict | None:
@@ -39,11 +40,10 @@ class Provider:
 
     def on_message(self, msg: dict) -> None:
         """IPFS Pubsub callback. Saves demand and offer."""
-
         if msg["senderID"] == self.config["ipfs_id_dapp"]:
-            self.demand = json.loads(msg["data"].decode("utf-8"))
+            self.demand = json.loads(msg["data"])
         elif msg["senderID"] == self.config["ipfs_id_agent"]:
-            self.offer = json.loads(msg["data"].decode("utf-8"))
+            self.offer = json.loads(msg["data"])
         self.check_pair_messages()
 
     def check_pair_messages(self):
@@ -76,7 +76,7 @@ class Provider:
 
     def create_liability(self) -> None:
         """Creates liability."""
-        
+
         lighthouse = self.w3.eth.contract(address=self.config["lighthouse_contract_address"], abi=self.lighthouse_abi)
         factory = self.w3.eth.contract(address=self.config["factory_contract_address"], abi=self.factory_abi)
         encoded_demand = self._encode_parameters(self.demand)
