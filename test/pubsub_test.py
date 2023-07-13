@@ -50,7 +50,7 @@ class RandomDemand():
             demand["sender"]
         ])
         msg = encode_defunct(hash)
-        demand["signature"] = str(web3.eth.Account.sign_message(msg, private_key=self.config["spottest_user_pk"]))
+        demand["signature"] = str(web3.eth.Account.sign_message(msg, private_key=self.config["test_user_pk"]))
         return demand
 
     def _read_configuration(self, path: str) -> dict | None:
