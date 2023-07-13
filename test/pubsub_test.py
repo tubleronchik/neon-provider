@@ -57,7 +57,7 @@ class RandomDemand():
         demand["signature"] = str(demand_signed.signature.hex())
         return demand
 
-    def _read_configuration(self, path: str) -> dict | None:
+    def _read_configuration(self, path: str) -> dict:
         """Internal method. Loads the configuration.
         :param config_path: Path to the configuration file.
         :return: Python dict with the config
