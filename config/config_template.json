@@ -11,5 +11,7 @@
     "validator_pk": "",
     "ipfs_topic": "",
     "ipfs_id_dapp": "",
-    "ipfs_id_agent": ""
+    "ipfs_id_agent": "",
+    "test_user_address": "",
+    "test_user_pk": ""
 }

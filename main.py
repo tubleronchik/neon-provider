@@ -91,7 +91,7 @@ class Provider:
 
 
 def run() -> None:
-    """Main function of the script. Read config path as argument from command line."""
+    """Main function of the script. Read the config path as the argument from the command line."""
 
     parser = argparse.ArgumentParser(description="Add config path.")
     parser.add_argument("config_path", type=str, help="config path")
