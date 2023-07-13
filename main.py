@@ -21,7 +21,7 @@ class Provider:
         self.config: dict = self._read_configuration(config_path)
         self.w3 = web3.Web3(web3.Web3.HTTPProvider(self.config["http_node_provider"]))
         self.demand = ""
-        self.offeer = ""
+        self.offer = ""
         ipfs_api.pubsub_subscribe(self.config["ipfs_topic"], self.on_message)
 
     def _read_configuration(self, path: str) -> dict | None:
