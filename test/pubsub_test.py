@@ -20,6 +20,7 @@ class RandomDemand():
             "token": self.config["xrt_contract_address"],
             "cost": "1",
             "lighthouse": self.config["lighthouse_contract_address"],
+            "lighthouseFee": "1",
             "validator": "0x0000000000000000000000000000000000000000",
             "validatorFee": "2",
             "deadline": self.w3.eth.get_block_number() + 1000,
@@ -31,6 +32,7 @@ class RandomDemand():
                  'address',
                  'uint256',
                  'address',
+                 'uint256',
                  'address',
                  'uint256',
                  'uint256',
@@ -38,11 +40,12 @@ class RandomDemand():
                  'address']
 
         hash = web3.Web3.soliditySha3(types, [
-            str.encode(demand["model"]), 
-            str.encode(demand["objective"]), 
-            demand["token"], 
-            self.w3.toInt(hexstr=demand["cost"]), 
-            demand["lighthouse"], 
+            str.encode(demand["model"]),
+            str.encode(demand["objective"]),
+            demand["token"],
+            self.w3.toInt(hexstr=demand["cost"]),
+            demand["lighthouse"],
+            self.w3.toInt(hexstr=demand["lighthouseFee"]),
             demand["validator"],
             self.w3.toInt(hexstr=demand["validatorFee"]),
             demand["deadline"],
@@ -50,7 +53,8 @@ class RandomDemand():
             demand["sender"]
         ])
         msg = encode_defunct(hash)
-        demand["signature"] = str(web3.eth.Account.sign_message(msg, private_key=self.config["test_user_pk"]))
+        demand_signed = web3.eth.Account.sign_message(msg, private_key=self.config["test_user_pk"])
+        demand["signature"] = str(demand_signed.signature.hex())
         return demand
 
     def _read_configuration(self, path: str) -> dict | None:
@@ -80,7 +84,6 @@ def run() -> None:
 
 if __name__ == "__main__":
     run()
-
 
 
 
