@@ -1,4 +1,4 @@
-"""Pubsub message sender to check the msg handler."""
+"""Pubsub message sender to check the msg handler. Not working due to the problem with secrets.token_hex(34)"""
 import web3
 import argparse
 import secrets

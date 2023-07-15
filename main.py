@@ -71,15 +71,13 @@ class Provider:
                 self.factory_abi, self.lighthouse_abi, self.liability = download_abi()
                 self.create_liability()
 
-    def _encode_parameters(self, msg: dict) -> bytes:
+    def _encode_offer(self, offer: dict) -> bytes:
         return encode_packed(
-            [
-                "bytes",
+            [   "bytes",
                 "bytes",
                 "address",
                 "uint256",
                 "address",
-                "uint256",
                 "address",
                 "uint256",
                 "uint256",
@@ -87,32 +85,60 @@ class Provider:
                 "bytes",
             ],
             (
-                msg["model"].encode(),
-                msg["objective"].encode(),
-                msg["token"],
-                int(msg["cost"]),
-                msg["validator"],
-                int(msg["validatorFee"]),
-                msg["lighthouse"],
-                int(msg["lighthouseFee"]),
-                int(msg["deadline"]),
-                msg["sender"],
-                msg["signature"].encode(),
+                offer["model"].encode(),
+                offer["objective"].encode(),
+                offer["token"],
+                int(offer["cost"]),
+                offer["validator"],
+                offer["lighthouse"],
+                int(offer["lighthouseFee"]),
+                int(offer["deadline"]),
+                offer["sender"],
+                offer["signature"]["signature"].encode(),
             ),
         )
+
+    def _encode_demand(seld, demand: dict) -> dict:
+        return encode_packed(
+            [
+                "bytes",
+                "bytes",
+                "address",
+                "uint256",
+                "address",
+                "address",
+                "uint256",
+                "uint256",
+                "address",
+                "bytes",
+            ],
+            (
+                demand["model"].encode(),
+                demand["objective"].encode(),
+                demand["token"],
+                int(demand["cost"]),
+                demand["lighthouse"],
+                demand["validator"],
+                int(demand["validatorFee"]),
+                int(demand["deadline"]),
+                demand["sender"],
+                demand["signature"]["signature"].encode(),
+            ),
+        )
+
 
     def create_liability(self) -> None:
         """Creates liability."""
 
         lighthouse = self.w3.eth.contract(address=self.config["lighthouse_contract_address"], abi=self.lighthouse_abi)
         factory = self.w3.eth.contract(address=self.config["factory_contract_address"], abi=self.factory_abi)
-        encoded_demand = self._encode_parameters(self.demand)
-        encoded_offer = self._encode_parameters(self.offer)
+        encoded_demand = self._encode_demand(self.demand)
+        encoded_offer = self._encode_offer(self.offer)
         print(self.w3.eth.get_transaction_count(self.config["provider_address"]))
         print(self.w3.eth.get_transaction_count(self.provider_account.address))
 
         tx = lighthouse.functions.createLiability(encoded_demand, encoded_offer).build_transaction(
-            {"from": self.config["provider_address"], "nonce": 72, "gas": 1000000000, "gasPrice": self.w3.eth.gas_price}
+            {"from": self.config["provider_address"], "nonce": 74, "gas": 1000000000, "gasPrice": self.w3.eth.gas_price}
         )
         print(tx)
         signed_tx = self.w3.eth.account.sign_transaction(tx, private_key=self.config["provider_pk"])
