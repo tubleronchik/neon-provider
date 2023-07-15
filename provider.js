@@ -142,7 +142,12 @@ class Provider {
 
         const nonce = await web3.eth.getTransactionCount(config.provider_address, "pending")
         let tx = await lighthouse.methods.createLiability(d_encoded, o_encoded).send({ from: config.provider_address, gas: 1000000000, nonce: nonce })
-        console.log(tx)
+        // console.log(tx)
+        const liability_receipt = await web3.eth.getTransactionReceipt(tx["transactionHash"])
+        const liability_address_hex = liability_receipt["logs"][2]["topics"][1]
+        const liability_address_dec = "0x" + liability_address_hex.slice(26)
+        const liability_address = web3.utils.toChecksumAddress(liability_address_dec)
+        console.log(liability_address)
         return tx
 
     }
