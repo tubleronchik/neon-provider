@@ -5,6 +5,7 @@ import secrets
 import json
 import ipfs_api
 from eth_account.messages import encode_defunct
+import time
 
 class RandomDemand():
     def __init__(self, config_path) -> None:
@@ -12,6 +13,9 @@ class RandomDemand():
         self.w3 = web3.Web3(web3.Web3.HTTPProvider(self.config["http_node_provider"]))
         demand = self.create_demand()
         ipfs_api.pubsub_publish(self.config["ipfs_topic"], json.dumps(demand))
+        time.sleep(3)
+        offer = self.create_offer(demand)
+        ipfs_api.pubsub_publish(self.config["ipfs_topic"], json.dumps(offer))
 
     def create_demand(self):
         demand = {
@@ -20,7 +24,6 @@ class RandomDemand():
             "token": self.config["xrt_contract_address"],
             "cost": "1",
             "lighthouse": self.config["lighthouse_contract_address"],
-            "lighthouseFee": "1",
             "validator": "0x0000000000000000000000000000000000000000",
             "validatorFee": "2",
             "deadline": self.w3.eth.get_block_number() + 1000,
@@ -32,7 +35,6 @@ class RandomDemand():
                  'address',
                  'uint256',
                  'address',
-                 'uint256',
                  'address',
                  'uint256',
                  'uint256',
@@ -45,7 +47,6 @@ class RandomDemand():
             demand["token"],
             self.w3.toInt(hexstr=demand["cost"]),
             demand["lighthouse"],
-            self.w3.toInt(hexstr=demand["lighthouseFee"]),
             demand["validator"],
             self.w3.toInt(hexstr=demand["validatorFee"]),
             demand["deadline"],
@@ -56,6 +57,51 @@ class RandomDemand():
         demand_signed = web3.eth.Account.sign_message(msg, private_key=self.config["test_user_pk"])
         demand["signature"] = str(demand_signed.signature.hex())
         return demand
+    
+    def create_offer(self, demand: dict) -> dict:
+        offer = {
+            "model": demand["model"],
+            "objective": demand["objective"],
+            "token": demand["token"],
+            "cost": demand["cost"],
+            "validator": demand["validator"],
+            "lighthouse": demand["lighthouse"],
+            "lighthouseFee": "1",
+            "deadline": self.w3.eth.get_block_number() + 1000,
+            "nonce": self.w3.eth.get_transaction_count(self.config["spot_address"]),
+            "sender": self.config["spot_address"],
+        }
+        types = [
+            "bytes",
+            "bytes",
+            "address",
+            "uint256",
+            "address",
+            "address",
+            "uint256",
+            "uint256",
+            "uint256",
+            "address",
+        ]
+
+        hash = web3.Web3.soliditySha3(
+            types,
+            [
+                str.encode(offer["model"]),
+                str.encode(offer["objective"]),
+                offer["token"],
+                self.w3.toInt(hexstr=offer["cost"]),
+                offer["validator"],
+                offer["lighthouse"],
+                self.w3.toInt(hexstr=offer["lighthouseFee"]),
+                offer["deadline"],
+                offer["nonce"],
+                offer["sender"],
+            ],
+        )
+        msg = encode_defunct(hash)
+        offer["signature"] = str(web3.eth.Account.sign_message(msg, private_key=self.config["spot_pk"]).signature.hex())  
+        return offer
 
     def _read_configuration(self, path: str) -> dict:
         """Internal method. Loads the configuration.
