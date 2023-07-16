@@ -16,7 +16,7 @@ async function randomDemand(factory) {
     let demand =
     {
         model: web3.utils.randomHex(34)
-        , objective: web3.utils.randomHex(34)
+        , objective: web3.utils.toHex(config.test_objective)
         , token: config.xrt_contract_address
         , cost: 1
         , lighthouse: config.lighthouse_contract_address
@@ -82,14 +82,14 @@ let factoryABI = JSON.parse(abi)
 let factory = await new web3.eth.Contract(factoryABI, config.factory_contract_address)
 
 const demand = await randomDemand(factory)
-const offer = await pairOffer(demand, factory)
+// const offer = await pairOffer(demand, factory)
 
 const demandMsg = JSON.stringify(demand)
 await ipfs.pubsub.publish(config.ipfs_topic, demandMsg)
 
 await new Promise(r => setTimeout(r, 2000));
 
-const offerMsg = JSON.stringify(offer)
-await ipfs.pubsub.publish(config.ipfs_topic, offerMsg)
+// const offerMsg = JSON.stringify(offer)
+// await ipfs.pubsub.publish(config.ipfs_topic, offerMsg)
 
 console.log(`published to ${config.ipfs_topic}`)

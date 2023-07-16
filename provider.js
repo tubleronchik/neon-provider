@@ -19,11 +19,13 @@ class Provider {
     constructor() {
         this.demand = {}
         this.offer = {}
+        this.liabilityAddress = ""
         this.onMsg = this.onMsg.bind(this); // to send context of the Provider into function
         this.checkPairMsgs = this.checkPairMsgs.bind(this);
         this.createLiability = this.createLiability.bind(this);
         this.encodeDemand = this.encodeDemand.bind(this);
         this.encodeOffer = this.encodeOffer.bind(this);
+        this.sendLiabilityAddress = this.sendLiabilityAddress.bind(this);
         this.ipfsSubscribe()
         
     }
@@ -64,8 +66,15 @@ class Provider {
 
             if ((demandModel == offerModel) && (demandObjective == offerObjective) &&  (this.demand.deadline > blockNumber)) {
                 await this.createLiability()
+                await this.sendLiabilityAddress()
             }
         }
+    }
+
+    async sendLiabilityAddress() {
+        const msg = {"liability": this.liabilityAddress}
+        const liabilityMsg = JSON.stringify(msg)
+        await ipfs.pubsub.publish(config.ipfs_topic, liabilityMsg)
     }
 
     downloadABI() {
@@ -146,11 +155,13 @@ class Provider {
         const liability_receipt = await web3.eth.getTransactionReceipt(tx["transactionHash"])
         const liability_address_hex = liability_receipt["logs"][2]["topics"][1]
         const liability_address_dec = "0x" + liability_address_hex.slice(26)
-        const liability_address = web3.utils.toChecksumAddress(liability_address_dec)
-        console.log(liability_address)
-        return tx
+        this.liabilityAddress = web3.utils.toChecksumAddress(liability_address_dec)
+        console.log(this.liabilityAddress)
+        return this.liabilityAddress
 
     }
+
+
 
 }
 
