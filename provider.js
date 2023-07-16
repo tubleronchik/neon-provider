@@ -1,4 +1,3 @@
-import * as IPFS from 'ipfs-core'
 import { create } from 'ipfs-http-client'
 import Web3 from 'web3';
 import { readFileSync } from "fs";
@@ -23,9 +22,8 @@ class Provider {
         this.onMsg = this.onMsg.bind(this); // to send context of the Provider into function
         this.checkPairMsgs = this.checkPairMsgs.bind(this);
         this.createLiability = this.createLiability.bind(this);
-        this.encodeDemand = this.encodeDemand.bind(this);
-        this.encodeOffer = this.encodeOffer.bind(this);
         this.sendLiabilityAddress = this.sendLiabilityAddress.bind(this);
+        this.finlizeLiability = this.finlizeLiability.bind(this);
         this.ipfsSubscribe()
         
     }
@@ -43,15 +41,20 @@ class Provider {
         if (m.sender == config.test_user_address) {
             stringMsg = String.fromCharCode(...Array.from(msg.data))
             this.demand = JSON.parse(stringMsg) 
-            console.log("demand") 
-            console.log(this.demand) 
         }   
 
         // else if (msg.from == config.ipfs_id_agent) {
         else {
             stringMsg = String.fromCharCode(...Array.from(msg.data))
-            this.offer = JSON.parse(stringMsg)  
-            console.log(this.offer)   
+            const jsonMsg = JSON.parse(stringMsg)  
+            if (jsonMsg.result) {
+                const resultHash = jsonMsg.result
+                await this.finlizeLiability(resultHash)
+                return
+            }
+            else {
+                this.offer = jsonMsg
+            } 
         }
         await this.checkPairMsgs()
     }
@@ -143,26 +146,40 @@ class Provider {
 
     async createLiability() {
         const { lighthouseABI, factoryABI } = this.downloadABI()
-        let lighthouse = await new web3.eth.Contract(lighthouseABI, config.lighthouse_contract_address)
-        let factory = await new web3.eth.Contract(factoryABI, config.factory_contract_address)
+        this.lighthouse = await new web3.eth.Contract(lighthouseABI, config.lighthouse_contract_address)
 
         let d_encoded = this.encodeDemand(this.demand)
         let o_encoded = this.encodeOffer(this.offer) 
 
         const nonce = await web3.eth.getTransactionCount(config.provider_address, "pending")
-        let tx = await lighthouse.methods.createLiability(d_encoded, o_encoded).send({ from: config.provider_address, gas: 1000000000, nonce: nonce })
-        // console.log(tx)
+        let tx = await this.lighthouse.methods.createLiability(d_encoded, o_encoded).send({ from: config.provider_address, gas: 1000000000, nonce: nonce })
+
         const liability_receipt = await web3.eth.getTransactionReceipt(tx["transactionHash"])
         const liability_address_hex = liability_receipt["logs"][2]["topics"][1]
         const liability_address_dec = "0x" + liability_address_hex.slice(26)
         this.liabilityAddress = web3.utils.toChecksumAddress(liability_address_dec)
-        console.log(this.liabilityAddress)
+        console.log(`Liability address: ${this.liabilityAddress}`)
         return this.liabilityAddress
-
     }
 
-
-
+    async finlizeLiability(resultHash) {
+        console.log("finalizing liability...")
+        const result = {
+            address: this.liabilityAddress, 
+            result: resultHash,
+            success: true       
+        }
+        const hash = web3.utils.soliditySha3(
+            { t: 'address', v: result.address },
+            { t: 'bytes', v: web3.utils.toHex(result.result) },
+            { t: 'bool', v: result.success }
+        )
+        const signature = await web3.eth.accounts.sign(hash, config.spot_pk)
+        const nonce = await web3.eth.getTransactionCount(config.provider_address, "pending")
+        let tx = await this.lighthouse.methods.finalizeLiability(result.address, web3.utils.toHex(result.result), result.success, signature.signature).send({ from: config.provider_address, gas: 1000000000, nonce: nonce })
+        console.log(`Liability ${this.liabilityAddress} finalized!`)
+        console.log(tx.transactionHash)
+    }
 }
 
 const provider = new Provider()

@@ -1,4 +1,3 @@
-import * as IPFS from 'ipfs-core'
 import { create } from 'ipfs-http-client'
 import Web3 from 'web3';
 import { readFileSync } from "fs";
@@ -87,7 +86,7 @@ const demand = await randomDemand(factory)
 const demandMsg = JSON.stringify(demand)
 await ipfs.pubsub.publish(config.ipfs_topic, demandMsg)
 
-await new Promise(r => setTimeout(r, 2000));
+// await new Promise(r => setTimeout(r, 2000));
 
 // const offerMsg = JSON.stringify(offer)
 // await ipfs.pubsub.publish(config.ipfs_topic, offerMsg)
