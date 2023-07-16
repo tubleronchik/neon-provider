@@ -12,7 +12,7 @@ web3.eth.accounts.wallet.add(config.test_user_pk)
 web3.eth.defaultAccount = config.provider_address
 
 // connect to the default API address http://localhost:5001
-const ipfs = create()
+const ipfs = create("http://127.0.0.1:5001")
 
 class Provider {
     constructor() {
@@ -22,7 +22,7 @@ class Provider {
         this.onMsg = this.onMsg.bind(this); // to send context of the Provider into function
         this.checkPairMsgs = this.checkPairMsgs.bind(this);
         this.createLiability = this.createLiability.bind(this);
-        this.sendLiabilityAddress = this.sendLiabilityAddress.bind(this);
+        this.sendPubsubMsg = this.sendPubsubMsg.bind(this);
         this.finlizeLiability = this.finlizeLiability.bind(this);
         this.ipfsSubscribe()
         
@@ -33,16 +33,16 @@ class Provider {
     }
 
     async onMsg(msg) {
-        console.log(`from: ${msg.from}`)
         let stringMsg = ""
         if (msg.from == config.ipfs_id_dapp) {
             stringMsg = String.fromCharCode(...Array.from(msg.data))
             this.demand = JSON.parse(stringMsg) 
+            await this.checkPairMsgs()
         }   
-
+        
         else if (msg.from == config.ipfs_id_agent) {
             stringMsg = String.fromCharCode(...Array.from(msg.data))
-            const jsonMsg = JSON.parse(stringMsg)  
+            const jsonMsg = JSON.parse(stringMsg)
             if (jsonMsg.result) {
                 const resultHash = jsonMsg.result
                 await this.finlizeLiability(resultHash)
@@ -50,9 +50,9 @@ class Provider {
             }
             else {
                 this.offer = jsonMsg
+                await this.checkPairMsgs()
             } 
         }
-        await this.checkPairMsgs()
     }
 
     async checkPairMsgs() {
@@ -65,15 +65,15 @@ class Provider {
 
             if ((demandModel == offerModel) && (demandObjective == offerObjective) &&  (this.demand.deadline > blockNumber)) {
                 await this.createLiability()
-                await this.sendLiabilityAddress()
+                await this.sendPubsubMsg({"liability": this.liabilityAddress}, config.ipfs_topic)
             }
         }
     }
 
-    async sendLiabilityAddress() {
-        const msg = {"liability": this.liabilityAddress}
-        const liabilityMsg = JSON.stringify(msg)
-        await ipfs.pubsub.publish(config.ipfs_topic, liabilityMsg)
+    async sendPubsubMsg(msg, topic) {
+        const jsonMsg = JSON.stringify(msg)
+        await ipfs.pubsub.publish(topic, jsonMsg)
+
     }
 
     downloadABI() {
@@ -173,8 +173,8 @@ class Provider {
         const signature = await web3.eth.accounts.sign(hash, config.spot_pk)
         const nonce = await web3.eth.getTransactionCount(config.provider_address, "pending")
         let tx = await this.lighthouse.methods.finalizeLiability(result.address, web3.utils.toHex(result.result), result.success, signature.signature).send({ from: config.provider_address, gas: 1000000000, nonce: nonce })
-        console.log(`Liability ${this.liabilityAddress} finalized!`)
-        console.log(tx.transactionHash)
+        console.log(`Liability ${this.liabilityAddress} finalized! Tx hash: ${tx.transactionHash}`)
+        await this.sendPubsubMsg({"finalized": "true"}, config.ipfs_topic)
     }
 }
 
