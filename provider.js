@@ -35,16 +35,12 @@ class Provider {
     async onMsg(msg) {
         console.log(`from: ${msg.from}`)
         let stringMsg = ""
-        stringMsg = String.fromCharCode(...Array.from(msg.data))
-        let m = JSON.parse(stringMsg) 
-        // if (msg.from == config.ipfs_id_dapp) {
-        if (m.sender == config.test_user_address) {
+        if (msg.from == config.ipfs_id_dapp) {
             stringMsg = String.fromCharCode(...Array.from(msg.data))
             this.demand = JSON.parse(stringMsg) 
         }   
 
-        // else if (msg.from == config.ipfs_id_agent) {
-        else {
+        else if (msg.from == config.ipfs_id_agent) {
             stringMsg = String.fromCharCode(...Array.from(msg.data))
             const jsonMsg = JSON.parse(stringMsg)  
             if (jsonMsg.result) {
