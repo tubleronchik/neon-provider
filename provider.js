@@ -150,14 +150,19 @@ class Provider {
         let o_encoded = this.encodeOffer(this.offer) 
 
         const nonce = await web3.eth.getTransactionCount(config.provider_address, "pending")
-        let tx = await this.lighthouse.methods.createLiability(d_encoded, o_encoded).send({ from: config.provider_address, gas: 1000000000, nonce: nonce })
+        try {
+            let tx = await this.lighthouse.methods.createLiability(d_encoded, o_encoded).send({ from: config.provider_address, gas: 1000000000, nonce: nonce })
 
-        const liability_receipt = await web3.eth.getTransactionReceipt(tx["transactionHash"])
-        const liability_address_hex = liability_receipt["logs"][2]["topics"][1]
-        const liability_address_dec = "0x" + liability_address_hex.slice(26)
-        this.liabilityAddress = web3.utils.toChecksumAddress(liability_address_dec)
-        console.log(`Liability address: ${this.liabilityAddress}`)
-        return this.liabilityAddress
+            const liability_receipt = await web3.eth.getTransactionReceipt(tx["transactionHash"])
+            const liability_address_hex = liability_receipt["logs"][2]["topics"][1]
+            const liability_address_dec = "0x" + liability_address_hex.slice(26)
+            this.liabilityAddress = web3.utils.toChecksumAddress(liability_address_dec)
+            console.log(`Liability address: ${this.liabilityAddress}`)
+            return this.liabilityAddress
+        } catch(error) {
+            console.error("Couldn't create liability!")
+            console.log(error)
+        } 
     }
 
     async finlizeLiability(resultHash) {
@@ -174,8 +179,13 @@ class Provider {
         )
         const signature = await web3.eth.accounts.sign(hash, config.spot_pk)
         const nonce = await web3.eth.getTransactionCount(config.provider_address, "pending")
-        let tx = await this.lighthouse.methods.finalizeLiability(result.address, web3.utils.toHex(result.result), result.success, signature.signature).send({ from: config.provider_address, gas: 1000000000, nonce: nonce })
-        console.log(`Liability ${this.liabilityAddress} finalized! Tx hash: ${tx.transactionHash}`)
+        try {
+            let tx = await this.lighthouse.methods.finalizeLiability(result.address, web3.utils.toHex(result.result), result.success, signature.signature).send({ from: config.provider_address, gas: 1000000000, nonce: nonce })
+            console.log(`Liability ${this.liabilityAddress} finalized! Tx hash: ${tx.transactionHash}`)
+        } catch(error) {
+            console.error("Couldn't finalize liability!")
+            console.log(error)
+        }
         await this.sendPubsubMsg({"finalized": "true"}, config.ipfs_topic)
     }
 
@@ -196,13 +206,17 @@ class Provider {
         const nft = await new web3.eth.Contract(nftABI, config.nft_contract_address)
         const tokenURI = `${config.pinata_endpoint}${IpfsHash}`
         const nonce = await web3.eth.getTransactionCount(config.provider_address, "pending")
-        const tx = await nft.methods.mintNFT(this.demand.sender, tokenURI).send({ from: config.provider_address, gas: 1000000000, nonce: nonce })
-        const receipt = await web3.eth.getTransactionReceipt(tx["transactionHash"])
-        const logs = receipt.logs
-        const tokenId = web3.utils.hexToNumber(logs[0].topics[3])
-        console.log(`NFT id: ${tokenId}`) 
-        return tokenId
-
+        try {
+            const tx = await nft.methods.mintNFT(this.demand.sender, tokenURI).send({ from: config.provider_address, gas: 1000000000, nonce: nonce })
+            const receipt = await web3.eth.getTransactionReceipt(tx["transactionHash"])
+            const logs = receipt.logs
+            const tokenId = web3.utils.hexToNumber(logs[0].topics[3])
+            console.log(`NFT id: ${tokenId}`) 
+            return tokenId
+        } catch(error) {
+            console.error("Couldn't mint NFT!")
+            console.log(error)
+        }
     }
 }
 
