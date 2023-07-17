@@ -13,5 +13,11 @@
     "ipfs_id_dapp": "",
     "ipfs_id_agent": "",
     "test_user_address": "",
-    "test_user_pk": ""
+    "test_user_pk": "", 
+    "test_objective": "", 
+    "ipfs_spot_topic": "",
+    "pinataApiKey": "",
+    "pinataSecretApiKey": "",
+    "nft_contract_address": "",
+    "pinata_endpoint": ""
 }

@@ -1,6 +1,7 @@
 {
   "type": "module",
   "dependencies": {
+    "@pinata/sdk": "^2.1.0",
     "bignumber.js": "^9.1.1",
     "ipfs-http-client": "^60.0.1",
     "web3": "^1.7.1"

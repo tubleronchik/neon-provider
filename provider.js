@@ -1,7 +1,9 @@
 import { create } from 'ipfs-http-client'
+import all from 'it-all'
 import Web3 from 'web3';
 import { readFileSync } from "fs";
 import BigNumber from "bignumber.js";
+import pinataSDK from '@pinata/sdk';
 
 let config = readFileSync(`config/config.json`)
 config = JSON.parse(config)
@@ -13,6 +15,7 @@ web3.eth.defaultAccount = config.provider_address
 
 // connect to the default API address http://localhost:5001
 const ipfs = create("http://127.0.0.1:5001")
+const pinata = new pinataSDK(config.pinataApiKey, config.pinataSecretApiKey);
 
 class Provider {
     constructor() {
@@ -24,6 +27,7 @@ class Provider {
         this.createLiability = this.createLiability.bind(this);
         this.sendPubsubMsg = this.sendPubsubMsg.bind(this);
         this.finlizeLiability = this.finlizeLiability.bind(this);
+        this.minNFT = this.minNFT.bind(this);
         this.ipfsSubscribe()
         
     }
@@ -45,6 +49,7 @@ class Provider {
             const jsonMsg = JSON.parse(stringMsg)
             if (jsonMsg.result) {
                 const resultHash = jsonMsg.result
+                await this.minNFT(resultHash)
                 await this.finlizeLiability(resultHash)
                 return
             }
@@ -76,14 +81,11 @@ class Provider {
 
     }
 
-    downloadABI() {
-        let abi = readFileSync(`abi/Lighthouse.json`)
-        let lighthouseABI = JSON.parse(abi)
-
-        abi = readFileSync(`abi/Factory.json`)
-        let factoryABI = JSON.parse(abi)
-
-        return {lighthouseABI, factoryABI}
+    downloadABI(path) {
+        let abi = readFileSync(path)
+        let jsonABI = JSON.parse(abi)
+        
+        return jsonABI
     }
 
     encodeDemand(demand) {
@@ -141,7 +143,7 @@ class Provider {
     }
 
     async createLiability() {
-        const { lighthouseABI, factoryABI } = this.downloadABI()
+        const lighthouseABI = this.downloadABI("abi/Lighthouse.json")
         this.lighthouse = await new web3.eth.Contract(lighthouseABI, config.lighthouse_contract_address)
 
         let d_encoded = this.encodeDemand(this.demand)
@@ -176,10 +178,37 @@ class Provider {
         console.log(`Liability ${this.liabilityAddress} finalized! Tx hash: ${tx.transactionHash}`)
         await this.sendPubsubMsg({"finalized": "true"}, config.ipfs_topic)
     }
+
+    async createMetadata(resultHash) {
+        const output = await all(ipfs.ls(resultHash))
+        const fullPath = output[0].path
+        const img = `${config.pinata_endpoint}${fullPath}/AUSTIN.jpg`
+        const description = `${config.pinata_endpoint}${fullPath}`
+        const metadata = {"description": description, "image": img, "name": "SpotNFT"}
+        return metadata
+    }
+
+    async minNFT(resultHash) {
+        console.log("Minting NFT....")
+        const metadata = await this.createMetadata(resultHash)
+        const { IpfsHash } = await pinata.pinJSONToIPFS(metadata)
+        const nftABI = this.downloadABI("abi/SpotNFT.json")
+        const nft = await new web3.eth.Contract(nftABI, config.nft_contract_address)
+        const tokenURI = `${config.pinata_endpoint}${IpfsHash}`
+        const nonce = await web3.eth.getTransactionCount(config.provider_address, "pending")
+        const tx = await nft.methods.mintNFT(this.demand.sender, tokenURI).send({ from: config.provider_address, gas: 1000000000, nonce: nonce })
+        const receipt = await web3.eth.getTransactionReceipt(tx["transactionHash"])
+        const logs = receipt.logs
+        const tokenId = web3.utils.hexToNumber(logs[0].topics[3])
+        console.log(`NFT id: ${tokenId}`) 
+        return tokenId
+
+    }
 }
 
 const provider = new Provider()
 
+  
 
   
 
