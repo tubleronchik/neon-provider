@@ -13,7 +13,6 @@ web3.eth.accounts.wallet.add(config.spot_pk)
 web3.eth.accounts.wallet.add(config.test_user_pk)
 web3.eth.defaultAccount = config.provider_address
 
-// connect to the default API address http://localhost:5001
 const ipfs = create("http://127.0.0.1:5001")
 const pinata = new pinataSDK(config.pinataApiKey, config.pinataSecretApiKey);
 
@@ -37,14 +36,9 @@ class Provider {
     }
 
     async onMsg(msg) {
-        let stringMsg = ""
-        if (msg.from == config.ipfs_id_dapp) {
-            stringMsg = String.fromCharCode(...Array.from(msg.data))
-            this.demand = JSON.parse(stringMsg) 
-            await this.checkPairMsgs()
-        }   
+        let stringMsg = "" 
         
-        else if (msg.from == config.ipfs_id_agent) {
+        if (msg.from == config.ipfs_id_agent) {
             stringMsg = String.fromCharCode(...Array.from(msg.data))
             const jsonMsg = JSON.parse(stringMsg)
             if (jsonMsg.result) {
@@ -57,6 +51,18 @@ class Provider {
                 this.offer = jsonMsg
                 await this.checkPairMsgs()
             } 
+        }
+        else {
+            try {
+                stringMsg = String.fromCharCode(...Array.from(msg.data))
+                const m = JSON.parse(stringMsg)
+                if (m.model == config.model) {
+                    this.demand = m
+                    await this.checkPairMsgs()
+                }  
+            } catch(error) {
+                return
+            }
         }
     }
 
@@ -148,11 +154,11 @@ class Provider {
 
         let d_encoded = this.encodeDemand(this.demand)
         let o_encoded = this.encodeOffer(this.offer) 
+        this.offer = undefined
 
         const nonce = await web3.eth.getTransactionCount(config.provider_address, "pending")
         try {
             let tx = await this.lighthouse.methods.createLiability(d_encoded, o_encoded).send({ from: config.provider_address, gas: 1000000000, nonce: nonce })
-
             const liability_receipt = await web3.eth.getTransactionReceipt(tx["transactionHash"])
             const liability_address_hex = liability_receipt["logs"][2]["topics"][1]
             const liability_address_dec = "0x" + liability_address_hex.slice(26)
@@ -160,7 +166,7 @@ class Provider {
             console.log(`Liability address: ${this.liabilityAddress}`)
             return this.liabilityAddress
         } catch(error) {
-            console.error("Couldn't create liability!")
+            console.error("Couldn't create liability:")
             console.log(error)
         } 
     }
@@ -183,7 +189,7 @@ class Provider {
             let tx = await this.lighthouse.methods.finalizeLiability(result.address, web3.utils.toHex(result.result), result.success, signature.signature).send({ from: config.provider_address, gas: 1000000000, nonce: nonce })
             console.log(`Liability ${this.liabilityAddress} finalized! Tx hash: ${tx.transactionHash}`)
         } catch(error) {
-            console.error("Couldn't finalize liability!")
+            console.error("Couldn't finalize liability:")
             console.log(error)
         }
         await this.sendPubsubMsg({"finalized": "true"}, config.ipfs_topic)
@@ -214,7 +220,7 @@ class Provider {
             console.log(`NFT id: ${tokenId}`) 
             return tokenId
         } catch(error) {
-            console.error("Couldn't mint NFT!")
+            console.error("Couldn't mint NFT:")
             console.log(error)
         }
     }
