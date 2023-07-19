@@ -27,6 +27,7 @@ class Provider {
         this.sendPubsubMsg = this.sendPubsubMsg.bind(this);
         this.finlizeLiability = this.finlizeLiability.bind(this);
         this.minNFT = this.minNFT.bind(this);
+        this.getDemandSender = this.getDemandSender.bind(this);
         this.ipfsSubscribe()
 
     }
@@ -205,6 +206,13 @@ class Provider {
         return metadata
     }
 
+    async getDemandSender() {
+        const liabilityABI = this.downloadABI("abi/Liability.json")
+        const liability = await new web3.eth.Contract(liabilityABI, this.liabilityAddress)
+        const sender = await liability.methods.promisee().call()
+        return sender
+    }
+
     async minNFT(resultHash) {
         console.log("Minting NFT....")
         const metadata = await this.createMetadata(resultHash)
@@ -213,8 +221,10 @@ class Provider {
         const nft = await new web3.eth.Contract(nftABI, config.nft_contract_address)
         const tokenURI = `${config.pinata_endpoint}${IpfsHash}`
         const nonce = await web3.eth.getTransactionCount(config.provider_address, "pending")
+        const demandSender = await this.getDemandSender()
+        console.log(demandSender)
         try {
-            const tx = await nft.methods.mintNFT(this.demand.sender, tokenURI).send({ from: config.provider_address, gas: 1000000000, nonce: nonce })
+            const tx = await nft.methods.mintNFT(demandSender, tokenURI).send({ from: config.provider_address, gas: 1000000000, nonce: nonce })
             const receipt = await web3.eth.getTransactionReceipt(tx["transactionHash"])
             const logs = receipt.logs
             const tokenId = web3.utils.hexToNumber(logs[0].topics[3])
