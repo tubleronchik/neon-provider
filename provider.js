@@ -116,7 +116,7 @@ class Provider {
                 , demand.validatorFee
                 , demand.deadline
                 , demand.sender
-                , demand.signature.signature
+                , demand.signature
             ]
         );
     }
