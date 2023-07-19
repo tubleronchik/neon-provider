@@ -14,13 +14,13 @@ web3.eth.accounts.wallet.add(config.test_user_pk)
 async function randomDemand(factory) {
     let demand =
     {
-        model: web3.utils.randomHex(34)
+        model: config.model
         , objective: web3.utils.toHex(config.test_objective)
         , token: config.xrt_contract_address
         , cost: 1
         , lighthouse: config.lighthouse_contract_address
         , validator: config.validator_address
-        , validatorFee: 1
+        , validatorFee: 0
         , deadline: await web3.eth.getBlockNumber() + 100000
         , nonce: BigNumber(await factory.methods.nonceOf(config.test_user_address).call()).toNumber()
         , sender: config.test_user_address
@@ -38,7 +38,7 @@ async function randomDemand(factory) {
         { t: 'uint256', v: demand.nonce },
         { t: 'address', v: demand.sender }
     );
-    demand.signature = await web3.eth.accounts.sign(hash, config.test_user_pk);
+    demand.signature = await web3.eth.accounts.sign(hash, config.test_user_pk).signature;
 
     return demand;
 }

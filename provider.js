@@ -218,6 +218,8 @@ class Provider {
             const logs = receipt.logs
             const tokenId = web3.utils.hexToNumber(logs[0].topics[3])
             console.log(`NFT id: ${tokenId}`) 
+
+            await this.sendPubsubMsg({"nftContract": config.nft_contract_address, "tokenId": tokenId}, config.ipfs_topic)
             return tokenId
         } catch(error) {
             console.error("Couldn't mint NFT:")
