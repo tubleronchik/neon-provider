@@ -28,7 +28,7 @@ class Provider {
         this.finlizeLiability = this.finlizeLiability.bind(this);
         this.minNFT = this.minNFT.bind(this);
         this.ipfsSubscribe()
-        
+
     }
     async ipfsSubscribe() {
         await ipfs.pubsub.subscribe(config.ipfs_topic, this.onMsg)
@@ -36,8 +36,7 @@ class Provider {
     }
 
     async onMsg(msg) {
-        let stringMsg = "" 
-        
+        let stringMsg = ""
         if (msg.from == config.ipfs_id_agent) {
             stringMsg = String.fromCharCode(...Array.from(msg.data))
             const jsonMsg = JSON.parse(stringMsg)
@@ -50,17 +49,19 @@ class Provider {
             else {
                 this.offer = jsonMsg
                 await this.checkPairMsgs()
-            } 
+            }
         }
-        else {
+        else if (msg.from != config.ipfs_id_provider) {
             try {
                 stringMsg = String.fromCharCode(...Array.from(msg.data))
                 const m = JSON.parse(stringMsg)
                 if (m.model == config.model) {
                     this.demand = m
-                    await this.checkPairMsgs()
-                }  
-            } catch(error) {
+                    console.log("demand")
+                    console.log(this.demand)
+                    await this.sendPubsubMsg(this.demand, config.ipfs_topic)
+                }
+            } catch (error) {
                 return
             }
         }
@@ -74,9 +75,9 @@ class Provider {
             const demandObjective = this.demand.objective
             const offerObjective = this.offer.objective
 
-            if ((demandModel == offerModel) && (demandObjective == offerObjective) &&  (this.demand.deadline > blockNumber)) {
+            if ((demandModel == offerModel) && (demandObjective == offerObjective) && (this.demand.deadline > blockNumber)) {
                 await this.createLiability()
-                await this.sendPubsubMsg({"liability": this.liabilityAddress}, config.ipfs_topic)
+                await this.sendPubsubMsg({ "liability": this.liabilityAddress }, config.ipfs_topic)
             }
         }
     }
@@ -84,13 +85,12 @@ class Provider {
     async sendPubsubMsg(msg, topic) {
         const jsonMsg = JSON.stringify(msg)
         await ipfs.pubsub.publish(topic, jsonMsg)
-
+        console.log(`Message ${jsonMsg} sent to ${topic}`)
     }
 
     downloadABI(path) {
         let abi = readFileSync(path)
         let jsonABI = JSON.parse(abi)
-        
         return jsonABI
     }
 
@@ -149,11 +149,12 @@ class Provider {
     }
 
     async createLiability() {
+        console.log("creating liability...")
         const lighthouseABI = this.downloadABI("abi/Lighthouse.json")
         this.lighthouse = await new web3.eth.Contract(lighthouseABI, config.lighthouse_contract_address)
 
         let d_encoded = this.encodeDemand(this.demand)
-        let o_encoded = this.encodeOffer(this.offer) 
+        let o_encoded = this.encodeOffer(this.offer)
         this.offer = undefined
 
         const nonce = await web3.eth.getTransactionCount(config.provider_address, "pending")
@@ -165,18 +166,18 @@ class Provider {
             this.liabilityAddress = web3.utils.toChecksumAddress(liability_address_dec)
             console.log(`Liability address: ${this.liabilityAddress}`)
             return this.liabilityAddress
-        } catch(error) {
+        } catch (error) {
             console.error("Couldn't create liability:")
             console.log(error)
-        } 
+        }
     }
 
     async finlizeLiability(resultHash) {
         console.log("finalizing liability...")
         const result = {
-            address: this.liabilityAddress, 
+            address: this.liabilityAddress,
             result: resultHash,
-            success: true       
+            success: true
         }
         const hash = web3.utils.soliditySha3(
             { t: 'address', v: result.address },
@@ -188,7 +189,7 @@ class Provider {
         try {
             let tx = await this.lighthouse.methods.finalizeLiability(result.address, web3.utils.toHex(result.result), result.success, signature.signature).send({ from: config.provider_address, gas: 1000000000, nonce: nonce })
             console.log(`Liability ${this.liabilityAddress} finalized! Tx hash: ${tx.transactionHash}`)
-        } catch(error) {
+        } catch (error) {
             console.error("Couldn't finalize liability:")
             console.log(error)
         }
@@ -217,11 +218,11 @@ class Provider {
             const receipt = await web3.eth.getTransactionReceipt(tx["transactionHash"])
             const logs = receipt.logs
             const tokenId = web3.utils.hexToNumber(logs[0].topics[3])
-            console.log(`NFT id: ${tokenId}`) 
+            console.log(`NFT id: ${tokenId}`)
 
-            await this.sendPubsubMsg({"nftContract": config.nft_contract_address, "tokenId": tokenId}, config.ipfs_topic)
+            await this.sendPubsubMsg({ "liabilityAddress": this.liabilityAddress, "nftContract": config.nft_contract_address, "tokenId": tokenId }, config.ipfs_topic)
             return tokenId
-        } catch(error) {
+        } catch (error) {
             console.error("Couldn't mint NFT:")
             console.log(error)
         }
@@ -230,7 +231,5 @@ class Provider {
 
 const provider = new Provider()
 
-  
 
-  
 
