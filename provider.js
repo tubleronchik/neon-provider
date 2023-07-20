@@ -61,7 +61,7 @@ class Provider {
                     console.log("demand")
                     console.log(this.demand)
                     await this.sendPubsubMsg(this.demand, config.ipfs_topic)
-                    await this.sendPubsubMsg({"gotDemand": true}, config.ipfs_topic)
+                    await this.sendPubsubMsg({"gotDemand": true, "demandSender": this.demand.sender, "demandObjective": this.demand.objective}, config.ipfs_topic)
                 }
             } catch (error) {
                 return
