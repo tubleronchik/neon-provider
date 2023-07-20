@@ -56,11 +56,14 @@ class Provider {
             try {
                 stringMsg = String.fromCharCode(...Array.from(msg.data))
                 const m = JSON.parse(stringMsg)
-                if (m.model == config.model) {
+                if ((m.model == config.model) && (JSON.stringify(m) != JSON.stringify(this.demand))) {
                     this.demand = m
                     console.log("demand")
                     console.log(this.demand)
                     await this.sendPubsubMsg(this.demand, config.ipfs_topic)
+                    await this.sendPubsubMsg({"gotDemand": true, "demandSender": this.demand.sender, "demandObjective": this.demand.objective}, config.ipfs_topic)
+                }
+                else if (JSON.stringify(m) == JSON.stringify(this.demand)) {
                     await this.sendPubsubMsg({"gotDemand": true, "demandSender": this.demand.sender, "demandObjective": this.demand.objective}, config.ipfs_topic)
                 }
             } catch (error) {
