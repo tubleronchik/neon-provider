@@ -47,6 +47,9 @@ class Provider {
                 await this.finlizeLiability(resultHash)
                 return
             }
+            else if (jsonMsg.queue) {
+                return
+            }
             else {
                 this.offer = jsonMsg
                 await this.checkPairMsgs()
