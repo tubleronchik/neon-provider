@@ -2,7 +2,6 @@ import { create } from 'ipfs-http-client'
 import all from 'it-all'
 import Web3 from 'web3';
 import { readFileSync } from "fs";
-import BigNumber from "bignumber.js";
 import pinataSDK from '@pinata/sdk';
 
 let config = readFileSync(`config/config.json`)
@@ -21,6 +20,7 @@ class Provider {
         this.demand = {}
         this.offer = {}
         this.liabilityAddress = ""
+        this.nftSent = false
         this.onMsg = this.onMsg.bind(this); // to send context of the Provider into function
         this.checkPairMsgs = this.checkPairMsgs.bind(this);
         this.createLiability = this.createLiability.bind(this);
@@ -48,6 +48,7 @@ class Provider {
                 return
             }
             else if (jsonMsg.queue) {
+                console.log(jsonMsg)
                 return
             }
             else {
@@ -68,6 +69,10 @@ class Provider {
                 }
                 else if (JSON.stringify(m) == JSON.stringify(this.demand)) {
                     await this.sendPubsubMsg({"gotDemand": true, "demandSender": this.demand.sender, "demandObjective": this.demand.objective}, config.ipfs_topic)
+                }
+                else if (m.gotNFT) {
+                    this.nftSent = true
+                    console.log(`this.nftSent: ${this.nftSent}`)
                 }
             } catch (error) {
                 return
@@ -167,7 +172,7 @@ class Provider {
 
         const nonce = await web3.eth.getTransactionCount(config.provider_address, "pending")
         try {
-            let tx = await this.lighthouse.methods.createLiability(d_encoded, o_encoded).send({ from: config.provider_address, gas: 1000000000, nonce: nonce })
+            let tx = await this.lighthouse.methods.createLiability(d_encoded, o_encoded).send({ from: config.provider_address, gas: 300000000, nonce: nonce })
             const liability_receipt = await web3.eth.getTransactionReceipt(tx["transactionHash"])
             const liability_address_hex = liability_receipt["logs"][2]["topics"][1]
             const liability_address_dec = "0x" + liability_address_hex.slice(26)
@@ -195,13 +200,13 @@ class Provider {
         const signature = await web3.eth.accounts.sign(hash, config.spot_pk)
         const nonce = await web3.eth.getTransactionCount(config.provider_address, "pending")
         try {
-            let tx = await this.lighthouse.methods.finalizeLiability(result.address, web3.utils.toHex(result.result), result.success, signature.signature).send({ from: config.provider_address, gas: 1000000000, nonce: nonce })
+            let tx = await this.lighthouse.methods.finalizeLiability(result.address, web3.utils.toHex(result.result), result.success, signature.signature).send({ from: config.provider_address, gas: 300000000, nonce: nonce })
             console.log(`Liability ${this.liabilityAddress} finalized! Tx hash: ${tx.transactionHash}`)
         } catch (error) {
             console.error("Couldn't finalize liability:")
             console.log(error)
         }
-        await this.sendPubsubMsg({"finalized": "true"}, config.ipfs_topic)
+        await this.sendPubsubMsg({"finalized": "true", "finalizedLiabilityAddress": result.address}, config.ipfs_topic)
     }
 
     async createMetadata(resultHash) {
@@ -231,13 +236,32 @@ class Provider {
         const demandSender = await this.getDemandSender()
         console.log(demandSender)
         try {
-            const tx = await nft.methods.mintNFT(demandSender, tokenURI).send({ from: config.provider_address, gas: 1000000000, nonce: nonce })
+            const tx = await nft.methods.mintNFT(demandSender, tokenURI).send({ from: config.provider_address, gas: 300000000, nonce: nonce })
             const receipt = await web3.eth.getTransactionReceipt(tx["transactionHash"])
             const logs = receipt.logs
             const tokenId = web3.utils.hexToNumber(logs[0].topics[3])
             console.log(`NFT id: ${tokenId}`)
+            const maxAttempts = 10
+            let attempt = 0
 
-            await this.sendPubsubMsg({ "liabilityAddress": this.liabilityAddress, "nftContract": config.nft_contract_address, "tokenId": tokenId }, config.ipfs_topic)
+            const intervalPublish = setInterval(async () => {
+                if (attempt >= maxAttempts) {
+                    console.log('Stop repeating publish. Max attempts reached.');
+                    clearInterval(intervalPublish);
+                    return;
+                }
+
+                else if(this.nftSent) {
+                    console.log('Stop repeating publish.');
+                    clearInterval(intervalPublish);
+                    return; 
+                }
+                await this.sendPubsubMsg({ "liabilityAddress": this.liabilityAddress, "nftContract": config.nft_contract_address, "tokenId": tokenId }, config.ipfs_topic);
+                console.log(`Message sent successfully (attempt ${attempt + 1})`);
+                attempt++
+            }, 5000);
+
+            // await this.sendPubsubMsg({ "liabilityAddress": this.liabilityAddress, "nftContract": config.nft_contract_address, "tokenId": tokenId }, config.ipfs_topic)
             return tokenId
         } catch (error) {
             console.error("Couldn't mint NFT:")
@@ -247,6 +271,4 @@ class Provider {
 }
 
 const provider = new Provider()
-
-
 
