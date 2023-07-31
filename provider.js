@@ -248,12 +248,14 @@ class Provider {
                 if (attempt >= maxAttempts) {
                     console.log('Stop repeating publish. Max attempts reached.');
                     clearInterval(intervalPublish);
+                    this.nftSent = false
                     return;
                 }
 
                 else if(this.nftSent) {
                     console.log('Stop repeating publish.');
                     clearInterval(intervalPublish);
+                    this.nftSent = false
                     return; 
                 }
                 await this.sendPubsubMsg({ "liabilityAddress": this.liabilityAddress, "nftContract": config.nft_contract_address, "tokenId": tokenId }, config.ipfs_topic);
@@ -271,4 +273,3 @@ class Provider {
 }
 
 const provider = new Provider()
-
