@@ -19,5 +19,6 @@
     "pinataApiKey": "",
     "pinataSecretApiKey": "",
     "nft_contract_address": "",
-    "pinata_endpoint": ""
+    "pinata_endpoint": "",
+    "ipfs_id_provider": ""
 }
