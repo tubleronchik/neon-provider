@@ -18,6 +18,7 @@ class IPFSHelper {
   async publish(topic, msg) {
     const jsonMsg = JSON.stringify(msg)
     await this.ipfs.pubsub.publish(topic, jsonMsg)
+    console.log(`Message ${jsonMsg} sent to ${topic}`)
   }
 
   async listFiles(ipfsHash) {

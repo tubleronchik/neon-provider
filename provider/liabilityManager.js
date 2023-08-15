@@ -1,4 +1,5 @@
-import MSG_TYPES from "../consts/constants"
+import MSG_TYPES from '../consts/constants.js'
+
 
 class LiabilityManager {
   constructor(config, ipfsHelper, web3Helper, pinataHelper) {
@@ -92,7 +93,7 @@ class LiabilityManager {
   async minNFT(resultHash, demand) {
     console.log('Minting NFT....')
     const metadata = await this.ipfsHelper.createMetadata(resultHash)
-    const { IpfsHash } = await this.pinataHelper.pinJSONToIPFS(metadata)
+    const { IpfsHash } = await this.pinataHelper.pinJSON2IPFS(metadata)
 
     const nft = new this.web3Helper.getNFTContract(this.config.nft_contract_address)
     const tokenURI = `${this.config.pinata_endpoint}${IpfsHash}`
@@ -110,6 +111,27 @@ class LiabilityManager {
       const logs = receipt.logs;
       const tokenId = this.web3Helper.web3.utils.hexToNumber(logs[0].topics[3]);
       console.log(`NFT id: ${tokenId}`);
+      const maxAttempts = 10
+      let attempt = 0
+
+      const intervalPublish = setInterval(async () => {
+          if (attempt >= maxAttempts) {
+              console.log('Stop repeating publish. Max attempts reached.');
+              clearInterval(intervalPublish);
+              this.nftSent = false
+              return;
+          }
+
+          else if(this.nftSent) {
+              console.log('Stop repeating publish.');
+              clearInterval(intervalPublish);
+              this.nftSent = false
+              return; 
+          }
+          await this.ipfsHelper.publish({ liabilityAddress: this.liabilityAddress, nftContract: config.nft_contract_address, tokenId: tokenId }, config.ipfs_topic);
+          console.log(`Message sent successfully (attempt ${attempt + 1})`);
+          attempt++
+      }, 5000);
       return tokenId;
 
     } catch (error) {

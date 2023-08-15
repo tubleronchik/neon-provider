@@ -7,6 +7,7 @@ class MessageHandler {
       this.liabilityManager = liabilityManager
       this.demand = {}
       this.offer = {}
+      this.nftSent = false
       this.onMsg = this.onMsg.bind(this)
       this.checkPairMsgs = this.checkPairMsgs.bind(this)
       // this.sendPubsubMsg = this.sendPubsubMsg.bind(this)
@@ -24,20 +25,36 @@ class MessageHandler {
           await this.liabilityManager.minNFT(resultHash)
           await this.liabilityManager.finalizeLiability(resultHash)
           return
-        } else {
+        } else if (jsonMsg.queue) {
+          console.log(jsonMsg)
+          return
+      }   
+        else {
           this.offer = jsonMsg
           await this.checkPairMsgs()
         }
       }
 
-      else {
+      else if (msg.from != config.ipfs_id_provider) {
         try {
             stringMsg = String.fromCharCode(...Array.from(msg.data))
             const m = JSON.parse(stringMsg)
-            if (m.model == config.model) {
-                this.demand = m
-                await this.checkPairMsgs()
-            }  
+            if ((m.model == config.model) && (JSON.stringify(m) != JSON.stringify(this.demand))) {
+              this.demand = m
+              console.log("demand")
+              console.log(this.demand)
+              await this.ipfsHelper.publish(this.demand, config.ipfs_topic)
+              await this.ipfsHelper.publish({gotDemand: true, demandSender: this.demand.sender, demandObjective: this.demand.objective}, config.ipfs_topic)
+            } 
+
+            else if (JSON.stringify(m) == JSON.stringify(this.demand)) {
+              await this.ipfsHelper.publish({gotDemand: true, demandSender: this.demand.sender, demandObjective: this.demand.objective}, config.ipfs_topic)
+            }
+
+            else if (m.gotNFT) {
+                this.nftSent = true
+                console.log(`this.nftSent: ${this.nftSent}`)
+            }
         } catch(error) {
             return
         }

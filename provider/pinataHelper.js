@@ -2,10 +2,10 @@ import pinataSDK from '@pinata/sdk';
 
 class PinataHelper {
   constructor(apiKey, secretApiKey) {
-    this.pinata = pinataSDK(apiKey, secretApiKey);
+    this.pinata = new pinataSDK(apiKey, secretApiKey);
   }
 
-  async pinJSONToIPFS(json) {
+  async pinJSON2IPFS(json) {
     return this.pinata.pinJSONToIPFS(json);
   }
 }
