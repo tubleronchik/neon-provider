@@ -9,7 +9,7 @@ config = JSON.parse(config)
 const web3 = new Web3(config.http_node_provider)
 web3.eth.accounts.wallet.add(config.provider_pk)
 web3.eth.accounts.wallet.add(config.spot_pk)
-web3.eth.accounts.wallet.add(config.test_user_pk)
+// web3.eth.accounts.wallet.add(config.test_user_pk)
 web3.eth.defaultAccount = config.provider_address
 
 const ipfs = create("http://127.0.0.1:5001")
